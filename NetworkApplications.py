@@ -371,9 +371,49 @@ class Traceroute(ICMPPing):
 
     # TODO: send 3 ICMP traceroute probes per TTL and collect responses
     def sendIcmpProbesAndCollectResponses(self, ttl):
- 
-        pass # TODO: Remove this once this method is implemented       
 
+        hopAddr = None
+        icmpType = None
+        pkt_keys = []
+        hop_addrs = dict()
+        rtts = dict()
+ 
+        for probe_num in range(3):
+            
+            # Send one ICMP traceroute ping
+            sequence = probe_num + 1
+            packetID = sequence 
+            timeSent = self.sendOnePing(self.dstAddress, packetID, sequence, ttl=ttl, dataLength=48)
+
+
+            # Record sequence number (like UDP destination port)
+            pkt_keys.append(sequence)
+
+    
+            # Receive the response
+            trReplyPacket, hopAddr, timeRecvd = self.receiveOneTraceRouteResponse()
+
+            if trReplyPacket is None:
+               # Nothing received within the timeout period
+               continue
+
+            # Parse response
+            sequenceReceived, icmpType = self.parseICMPTracerouteResponse(trReplyPacket)
+            
+
+            # Check if we reached the destination. Reponse type 0 means we reached it.
+            if self.dstAddress == hopAddr and icmpType == 0:
+                self.isDestinationReached = True
+
+
+            # If the response matches the request, record the rtt and the hop address
+            if sequence == sequenceReceived:
+                rtts[sequence] = timeRecvd - timeSent
+                hop_addrs[sequence] = hopAddr
+
+
+        # Print results
+        self.printMultipleResults(ttl, pkt_keys, hop_addrs, rtts, args.hostname)
     # Send 3 UDP traceroute probes per TTL and collect responses
     def sendUdpProbesAndCollectResponses(self, ttl):
         
