@@ -494,10 +494,42 @@ class Traceroute(ICMPPing):
 
         return dst_port, icmpType
     
-    # TODO: parse the response to the ICMP probe
+    # parse the response to the ICMP probe
     def parseICMPTracerouteResponse(self, trReplyPacket):
         
-        pass # TODO: Remove this once this method is implemented       
+        sequenceNumber = None
+        # 1. Extract the first 20 bytes
+        ip_header = struct.unpack("!BBHHHBBH4s4s", trReplyPacket[:20])
+
+        # 2. Read the IP Header Length (using bit masking) 
+        ip_header_len_field = (ip_header[0] & 0x0F)
+
+        # 3. Compute the IP header length
+        # This field contains the length of the IP header in terms of 
+        # the number of 4-byte words. So value 5 indicates 5*4 = 20 bytes.
+        ip_header_len = ip_header_len_field * 4
+
+        # 4. Parse the outermost ICMP header which is 8 bytes long:
+        icmpType, _, _, _, _  = struct.unpack("!BBHHH", trReplyPacket[ip_header_len:ip_header_len + 8])
+    
+        # 5. Parse the ICMP message based on type
+        if icmpType == 0:
+            # ICMP echo reply, the  sequence is in the outer ICMP header
+            _, _, _, _, sequence = struct.unpack("!BBHHH", trReplyPacket[ip_header_len:ip_header_len + 8])
+        
+        elif icmpType == 11:
+            # ICMP Time Exceeded means the sequence is in the inner ICMP header
+            ip_header_inner = struct.unpack("!BBHHHBBH4s4s", trReplyPacket[ip_header_len + 8:ip_header_len+28])
+            
+            ip_header_len_field = (ip_header_inner[0] & 0x0F)
+            ip_header_inner_len = ip_header_len_field * 4
+            
+            # Extract the sequence number from inner ICMP header
+            _, _, _, _, sequence = struct.unpack('!BBHHH', trReplyPacket[ip_header_len + 8 + ip_header_inner_len : ip_header_len + 8 + ip_header_inner_len + 8])
+    
+        return sequence, icmpType        
+
+
 
     def receiveOneTraceRouteResponse(self):
 
