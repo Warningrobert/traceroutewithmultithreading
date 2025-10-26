@@ -515,7 +515,7 @@ class Traceroute(ICMPPing):
         # 5. Parse the ICMP message based on type
         if icmpType == 0:
             # ICMP echo reply, the  sequence is in the outer ICMP header
-            _, _, _, _, sequence = struct.unpack("!BBHHH", trReplyPacket[ip_header_len:ip_header_len + 8])
+            _, _, _, _, sequenceNumber = struct.unpack("!BBHHH", trReplyPacket[ip_header_len:ip_header_len + 8])
         
         elif icmpType == 11:
             # ICMP Time Exceeded means the sequence is in the inner ICMP header
@@ -525,9 +525,9 @@ class Traceroute(ICMPPing):
             ip_header_inner_len = ip_header_len_field * 4
             
             # Extract the sequence number from inner ICMP header
-            _, _, _, _, sequence = struct.unpack('!BBHHH', trReplyPacket[ip_header_len + 8 + ip_header_inner_len : ip_header_len + 8 + ip_header_inner_len + 8])
+            _, _, _, _, sequenceNumber = struct.unpack('!BBHHH', trReplyPacket[ip_header_len + 8 + ip_header_inner_len : ip_header_len + 8 + ip_header_inner_len + 8])
     
-        return sequence, icmpType        
+        return sequenceNumber, icmpType        
 
 
 
