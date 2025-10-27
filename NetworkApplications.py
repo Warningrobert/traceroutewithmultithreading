@@ -577,9 +577,17 @@ class MultiThreadedTraceRoute(Traceroute):
         args.protocol = args.protocol.lower()
         self.timeout = args.timeout
         self.send_complete = threading.Event()
-        # NOTE you must use a lock when accessing data shared between the two threads
         self.lock = threading.Lock()  
 
+
+        # Resolve the hostnmae to IP address
+        try:
+            host = socket.gethostbyname(args.hostname)
+        except socket.gaierror:
+            print('Invalid hostname: ', args.hostname) 
+            return
+
+        print('Traceroute to: %s (%s)...' % (args.hostname, args.hostname, self.dstAddress))        
         # 2. Create a thread to send probes
         self.send_thread = threading.Thread(target=self.send_probes)
 
