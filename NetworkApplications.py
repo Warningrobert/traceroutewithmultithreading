@@ -536,7 +536,6 @@ class Traceroute(ICMPPing):
         timeReceipt = None
         hopAddr = None
         pkt = None
-
         # 1. Receive one packet or timeout
         try:
             pkt, addr = self.icmpSocket.recvfrom(MAX_DATA_RECV)
@@ -631,25 +630,41 @@ class MultiThreadedTraceRoute(Traceroute):
 
         ttl = 1
         while ttl <= MAX_TTL:
-            # Send three probes per TTL
-            for _ in range(3):  
-                if args.protocol == "icmp":
-                    pass # TODO: Remove this once this method is implemented       
-                    
-                elif args.protocol == "udp":
-                    pass # TODO: Remove this once this method is implemented       
 
-                # Sleep for a short period between sending probes
-                time.sleep(0.05)  # Small delay between probes
+            with self.lock:
+                if self.destination_reached:
+                    break
+                # Send three probes per TTL
+                for probe_num in range(3):  
+                    if args.protocol == "icmp":
+                        # generate sequence this way to avoid collissions 
+                        sequence = ttl * 10 + probe_num
+                        packetID = sequence
+                       
+                        # send probe with existing method
+                        timeSent = self.sendOnePing(self.dstAddress, packetID, sequence, ttl=ttl, dataLength=48)
+                        # stroe results from probe safely
+                        with self.lock:
+                            self.probe_data[sequence] = (ttl, timeSent)
 
-            ttl += 1
+
+
+                           # Initialize results dict for this TTL if its necessary 
+                            if ttl not in self.results:
+                                self.results[ttl] = {'pkt_keys': [], 'hop_addrs': {}, 'rtts': {}}
+
+                            # Record that we sent this sequence number
+                            self.results[ttl]['pkt_keys'].append(sequence)
+                                               
+                    time.sleep(0.05)  
+
+                ttl += 1
 
         # A final sleep before notifying the receive thread to exit
         time.sleep(args.timeout)
         # Notify the other thread that sending is complete
         self.send_complete.set()
         
-        pass # TODO: Remove this once this method is implemented       
 
     # Thread to receive responses (to be implemented, a skeleton is provided)
     def receive_responses(self):
