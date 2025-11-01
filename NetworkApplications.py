@@ -578,22 +578,32 @@ class MultiThreadedTraceRoute(Traceroute):
         self.send_complete = threading.Event()
         self.lock = threading.Lock()  
 
-
+        self.dstAddress= None
         # Resolve the hostnmae to IP address
         try:
-            host = socket.gethostbyname(args.hostname)
+            self.dstAddress = socket.gethostbyname(args.hostname)
         except socket.gaierror:
             print('Invalid hostname: ', args.hostname) 
             return
 
-        print('Traceroute to: %s (%s)...' % (args.hostname, args.hostname, self.dstAddress))        
+        print('%s traceroute to: %s (%s)...' % (args.hostname, args.hostname, self.dstAddress))        
 
         # Shared data structures 
         self.probe_data = {} 
         self.results = {}  
         self.destination_reached = False
+        
+        # Create socket
+        self.icmpSocket = None
+        try:
+            self.icmpSocket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
+        except socket.error as err:
+            traceback.print_exception(err)
+            exit(1)
 
 
+        # Set timeout
+        self.icmpSocket.settimeout(args.timeout)
         # 2. Create a thread to send probes
         self.send_thread = threading.Thread(target=self.send_probes)
 
@@ -612,6 +622,8 @@ class MultiThreadedTraceRoute(Traceroute):
         for ttl in sorted(self.results.keys()):
             r = self.results[ttl]
             self.printMultipleResults(ttl, r.get('pkt_keys'), r.get('hop_addrs'), r.get('rtts'), args.hostname)
+
+        self.icmpSocket.close()
         
             
     # Thread to send probes (to be implemented, a skeleton is provided)
