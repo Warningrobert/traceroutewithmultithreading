@@ -569,7 +569,6 @@ class Traceroute(ICMPPing):
 
         return timeSent
 
-# TODO: A multi-threaded traceroute implementation
 class MultiThreadedTraceRoute(Traceroute):
 
     def __init__(self, args):
@@ -588,6 +587,13 @@ class MultiThreadedTraceRoute(Traceroute):
             return
 
         print('Traceroute to: %s (%s)...' % (args.hostname, args.hostname, self.dstAddress))        
+
+        # Shared data structures 
+        self.probe_data = {} 
+        self.results = {}  
+        self.destination_reached = False
+
+
         # 2. Create a thread to send probes
         self.send_thread = threading.Thread(target=self.send_probes)
 
@@ -602,7 +608,11 @@ class MultiThreadedTraceRoute(Traceroute):
         self.send_thread.join()
         self.recv_thread.join()
 
-        # 6. TODO Print results
+        # Print results
+        for ttl in sorted(self.results.keys()):
+            r = self.results[ttl]
+            self.printMultipleResults(ttl, r.get('pkt_keys'), r.get('hop_addrs'), r.get('rtts'), args.hostname)
+        
             
     # Thread to send probes (to be implemented, a skeleton is provided)
     def send_probes(self):
