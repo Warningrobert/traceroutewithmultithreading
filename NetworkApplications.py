@@ -625,7 +625,7 @@ class MultiThreadedTraceRoute(Traceroute):
         self.icmpSocket.close()
         
             
-    # Thread to send probes (to be implemented, a skeleton is provided)
+    # Thread to send probes
     def send_probes(self):
 
         ttl = 1
@@ -634,31 +634,31 @@ class MultiThreadedTraceRoute(Traceroute):
             with self.lock:
                 if self.destination_reached:
                     break
-                # Send three probes per TTL
-                for probe_num in range(3):  
-                    if args.protocol == "icmp":
-                        # generate sequence this way to avoid collissions 
-                        sequence = ttl * 10 + probe_num
-                        packetID = sequence
-                       
-                        # send probe with existing method
-                        timeSent = self.sendOnePing(self.dstAddress, packetID, sequence, ttl=ttl, dataLength=48)
-                        # stroe results from probe safely
-                        with self.lock:
-                            self.probe_data[sequence] = (ttl, timeSent)
+            # Send three probes per TTL
+            for probe_num in range(3):  
+                if args.protocol == "icmp":
+                    # generate sequence this way to avoid collissions 
+                    sequence = ttl * 10 + probe_num
+                    packetID = sequence
+                   
+                    # send probe with existing method
+                    timeSent = self.sendOnePing(self.dstAddress, packetID, sequence, ttl=ttl, dataLength=48)
+                    # stroe results from probe safely
+                    with self.lock:
+                        self.probe_data[sequence] = (ttl, timeSent)
 
 
 
-                           # Initialize results dict for this TTL if its necessary 
-                            if ttl not in self.results:
-                                self.results[ttl] = {'pkt_keys': [], 'hop_addrs': {}, 'rtts': {}}
+                       # Initialize results dict for this TTL if its necessary 
+                        if ttl not in self.results:
+                            self.results[ttl] = {'pkt_keys': [], 'hop_addrs': {}, 'rtts': {}}
 
-                            # Record that we sent this sequence number
-                            self.results[ttl]['pkt_keys'].append(sequence)
-                                               
-                    time.sleep(0.05)  
+                        # Record that we sent this sequence number
+                        self.results[ttl]['pkt_keys'].append(sequence)
+                                           
+                time.sleep(0.05)  
 
-                ttl += 1
+            ttl += 1
 
         # A final sleep before notifying the receive thread to exit
         time.sleep(args.timeout)
