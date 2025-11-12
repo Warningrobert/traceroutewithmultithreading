@@ -585,7 +585,7 @@ class MultiThreadedTraceRoute(Traceroute):
             print('Invalid hostname: ', args.hostname) 
             return
 
-        print('%s traceroute to: %s (%s)...' % (args.hostname, args.hostname, self.dstAddress))        
+        print('%s traceroute to: %s (%s)...' % (args.protocol, args.hostname, self.dstAddress))        
 
         # Shared data structures 
         self.probe_data = {} 
@@ -673,12 +673,32 @@ class MultiThreadedTraceRoute(Traceroute):
         while not self.send_complete.is_set():
 
             if args.protocol == "icmp":
-                pass # TODO: Remove this once this method is implemented       
+               # Receive packet using existing method
+                pkt, hopAddr, timeRecvd = self.receiveOneTraceRouteResponse()
+
+                if pkt is None:
+                    continue
+                # Parse packet using existing method
+                key, icmpType = self.parseICMPTracerouteResponse(pkt)
+
+                # Match with sent probe (thread-safe)
+                with self.lock:
+                    if key in self.probe_data:
+                        # Found a matching probe!
+                        ttl, timeSent = self.probe_data[key]
+                        rtt = timeRecvd - timeSent
+                        
+                        # Store the results
+                        self.results[ttl]['hop_addrs'][key] = hopAddr
+                        self.results[ttl]['rtts'][key] = rtt
+                        
+                        # Check if we reached the destination
+                        if hopAddr == self.dstAddress and icmpType == 0:
+                            self.destination_reached = True
 
             elif args.protocol == "udp":
                 pass # TODO: Remove this once this method is implemented       
 
-        pass # TODO: Remove this once this method is implemented       
 
 
 
