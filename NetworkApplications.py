@@ -767,15 +767,51 @@ class WebServer(NetworkApplication):
             # Close the connection socket
             connectionSocket.close()
 
-# TODO: A proxy implementation 
+#  A proxy implementation 
 class Proxy(NetworkApplication):
 
     def __init__(self, args):
         print('Web Proxy starting on port: %i...' % (args.port))
 
-        pass # TODO: Remove this once this method is implemented       
-            
+        # Create tcp  socket
+        proxySocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        proxySocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    
+        # Bind to port
+        proxySocket.bind(("", args.port))
+       
+        # Listen
+        proxySocket.listen(1)
+        # Accept connections in a loop
+        while True:
+            clientSocket, addr = proxySocket.accept()
+            print(f"Connection from {addr}")
+            self.handleRequest(clientSocket)
+            clientSocket.close()
 
+
+
+    def handleRequest(self, clientSocket):
+        # receive request
+        request = clientSocket.recv(MAX_DATA_RECV).decode('utf-8', errors='ignore')
+
+        # get URL
+        url = request.split()[1]
+        url = url.replace('http://', '')
+
+
+        # get host
+        parts = url.split('/', 1)
+        host = parts[0] 
+
+        # If there is a path, make set path variable to the path, else set to root.
+        if len(parts) > 1:
+            path = '/' + parts[1]  
+        else:
+            path = '/'  
+
+    
+        print(f"Host: {host}, Path: {path}")
 # NOTE: Do NOT delete the code below
 if __name__ == "__main__":
         
