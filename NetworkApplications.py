@@ -772,7 +772,12 @@ class Proxy(NetworkApplication):
 
     def __init__(self, args):
         print('Web Proxy starting on port: %i...' % (args.port))
-
+        # cache
+        self.cache = {}  
+        self.cache_dir = './cache'
+       
+        if not os.path.exists(self.cache_dir):
+            os.makedirs(self.cache_dir)
         # Create tcp  socket
         proxySocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         proxySocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -809,9 +814,71 @@ class Proxy(NetworkApplication):
             path = '/' + parts[1]  
         else:
             path = '/'  
-
-    
+        # Create cache key
+        cache_key = host + path
+         # Check if in cache
+        if cache_key in self.cache:
+            print(f"Cache hit: {cache_key}")
+            cache_file = self.cache[cache_key]
+            
+            try:
+                with open(cache_file, 'rb') as f:
+                    cached_response = f.read()
+                clientSocket.send(cached_response)
+                print(f"Sent cached response: {len(cached_response)} bytes")
+                return
+            except Exception as e:
+                print(f"Error reading cache: {e}")
+        
+        # Cache miss - forward to server
+        print(f"Cache miss: {cache_key}")
         print(f"Host: {host}, Path: {path}")
+           
+
+     # connect to the actual web server
+        serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        serverSocket.settimeout(10)
+        serverSocket.connect((host, 80)) #port 80
+        
+        # Create a new http request for the server
+        new_request = f"GET {path} HTTP/1.1\r\n"
+        new_request += f"Host: {host}\r\n"
+        new_request += "Connection: close\r\n"
+        new_request += "\r\n"
+        
+        #Send request to server
+        serverSocket.send(new_request.encode())
+        
+        # Receive response from server
+        response = b''
+        while True:
+            data = serverSocket.recv(4096)
+            if not data:
+                break
+            response += data
+        
+        serverSocket.close()
+        #save to cache
+        self.saveToCache(cache_key, response)
+        #Send response back to client
+        clientSocket.send(response)
+        print(f"Response sent: {len(response)} bytes")       
+
+    def saveToCache(self, cache_key, response):
+        
+        # Replace invalid characters for filenames with underscores
+        filename = cache_key.replace('/', '_').replace(':', '_').replace('?', '_')
+        
+        cache_file = os.path.join(self.cache_dir, filename)
+        
+        # Write response to file
+        with open(cache_file, 'wb') as f:
+            f.write(response)
+        
+        # Remember this in cache dictionary
+        self.cache[cache_key] = cache_file
+        print(f"Cached: {cache_key}")
+
 # NOTE: Do NOT delete the code below
 if __name__ == "__main__":
         
